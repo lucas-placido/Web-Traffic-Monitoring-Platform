@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, avg, window, from_json
+from pyspark.sql.functions import col, count, avg, window, from_json, to_timestamp
 from pyspark.sql.types import (
     StructType,
     StructField,
@@ -11,7 +11,7 @@ from pyspark.sql.types import (
 
 
 class LogProcessor:
-    def __init__(self, kafka_broker: str = "localhost:9092", topic: str = "web-logs"):
+    def __init__(self, kafka_broker: str = "localhost:9091", topic: str = "web-logs"):
         self.spark = (
             SparkSession.builder.appName("WebLogProcessor")
             .config(
@@ -27,7 +27,9 @@ class LogProcessor:
         # Define schema for web logs
         self.schema = StructType(
             [
-                StructField("timestamp", TimestampType(), True),
+                StructField(
+                    "timestamp", StringType(), True
+                ),  # Alterado para StringType
                 StructField("ip", StringType(), True),
                 StructField("endpoint", StringType(), True),
                 StructField("user_agent", StringType(), True),
@@ -43,7 +45,7 @@ class LogProcessor:
             self.spark.readStream.format("kafka")
             .option("kafka.bootstrap.servers", self.kafka_broker)
             .option("subscribe", self.topic)
-            .option("startingOffsets", "latest")
+            .option("startingOffsets", "earliest")
             .load()
         )
 
@@ -57,7 +59,10 @@ class LogProcessor:
             from_json(col("value").cast("string"), self.schema).alias("data")
         ).select("data.*")
 
-        # Calculate metrics
+        # Converter a string de timestamp para o tipo timestamp
+        parsed_df = parsed_df.withColumn("timestamp", to_timestamp("timestamp"))
+
+        # Agora podemos usar a função window com o campo timestamp convertido
         metrics = (
             parsed_df.withWatermark("timestamp", "1 minute")
             .groupBy(window("timestamp", "5 minutes"), "endpoint")
@@ -103,4 +108,4 @@ class LogProcessor:
 
 if __name__ == "__main__":
     processor = LogProcessor()
-    processor.run()
+    processor.run("data/spark-jobs/output")

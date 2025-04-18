@@ -44,13 +44,19 @@ class WebLogGenerator:
 
     def generate_log(self) -> Dict[str, Any]:
         """Generate a single web log entry."""
-        timestamp = datetime.utcnow().isoformat()
+        # Usar formato ISO 8601 completo para garantir compatibilidade com Spark
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         response_time = random.uniform(0.1, 5.0)
+
+        # Limitar a uma lista menor de endpoints para facilitar visualização de grupos
+        endpoint = random.choice(
+            self.endpoints[:3]
+        )  # Usar apenas os primeiros 3 endpoints
 
         return {
             "timestamp": timestamp,
             "ip": self.generate_ip(),
-            "endpoint": random.choice(self.endpoints),
+            "endpoint": endpoint,
             "user_agent": random.choice(self.user_agents),
             "status_code": random.choice(self.status_codes),
             "response_time": round(response_time, 3),
@@ -88,6 +94,7 @@ class WebLogGenerator:
 
 
 if __name__ == "__main__":
-    # Example usage
+    print("Iniciando o gerador de logs...")
+    # Gerar logs mais rapidamente para testes
     generator = WebLogGenerator()
-    generator.run(interval=0.5)  # Generate logs every 0.5 seconds
+    generator.run(interval=0.2)  # Generate logs every 0.2 seconds

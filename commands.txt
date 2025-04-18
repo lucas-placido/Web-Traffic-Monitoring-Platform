@@ -1,0 +1,9 @@
+commands
+
+airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+
+airflow scheduler
+
+kafka-console-consumer --bootstrap-server localhost:9091 --topic web-logs --from-beginning
+
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1 spark-jobs/src/log_processor.py

@@ -5,7 +5,7 @@ from src.log_generator import WebLogGenerator
 class TestWebLogGenerator(unittest.TestCase):
     def setUp(self):
         self.generator = WebLogGenerator(
-            kafka_broker="localhost:9092", topic="test-logs"
+            kafka_broker="localhost:9091", topic="test-logs"
         )
 
     def test_generate_ip(self):

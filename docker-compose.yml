@@ -63,7 +63,6 @@ services:
       - ./airflow/plugins:/opt/airflow/plugins
     command: >
       bash -c "airflow db init && airflow webserver && airflow scheduler"
-
     ports:
       - "8081:8080"
     depends_on:
