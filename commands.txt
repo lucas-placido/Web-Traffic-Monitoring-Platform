@@ -1,9 +1,10 @@
 commands
 
 airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
-
 airflow scheduler
 
 kafka-console-consumer --bootstrap-server localhost:9091 --topic web-logs --from-beginning
 
-spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1 spark-jobs/src/log_processor.py
+docker exec -it -u root 0a65a1d3d5852d3e0227050ea760a15bd6eec4495396749a3c4c978c2eead0f2 bash
+cd /opt/bitnami/spark/scripts/
+spark-submit log_processor.py

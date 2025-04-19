@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class WebLogGenerator:
-    def __init__(self, kafka_broker: str = "localhost:9091", topic: str = "web-logs"):
+    def __init__(self, kafka_broker: str = "localhost:9092", topic: str = "web-logs"):
         self.producer = KafkaProducer(
             bootstrap_servers=kafka_broker,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),

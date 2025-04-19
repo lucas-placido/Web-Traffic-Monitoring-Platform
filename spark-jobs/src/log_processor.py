@@ -1,17 +1,16 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, avg, window, from_json, to_timestamp
+from pyspark.sql.functions import col, from_json
 from pyspark.sql.types import (
     StructType,
     StructField,
     StringType,
     IntegerType,
     DoubleType,
-    TimestampType,
 )
 
 
 class LogProcessor:
-    def __init__(self, kafka_broker: str = "localhost:9091", topic: str = "web-logs"):
+    def __init__(self, kafka_broker: str = "kafka:19092", topic: str = "web-logs"):
         self.spark = (
             SparkSession.builder.appName("WebLogProcessor")
             .config(
@@ -27,9 +26,7 @@ class LogProcessor:
         # Define schema for web logs
         self.schema = StructType(
             [
-                StructField(
-                    "timestamp", StringType(), True
-                ),  # Alterado para StringType
+                StructField("timestamp", StringType(), True),
                 StructField("ip", StringType(), True),
                 StructField("endpoint", StringType(), True),
                 StructField("user_agent", StringType(), True),
@@ -45,12 +42,12 @@ class LogProcessor:
             self.spark.readStream.format("kafka")
             .option("kafka.bootstrap.servers", self.kafka_broker)
             .option("subscribe", self.topic)
-            .option("startingOffsets", "earliest")
+            .option("startingOffsets", "latest")
             .load()
         )
 
     def process_stream(self):
-        """Process the streaming data and calculate metrics."""
+        """Process the streaming data and save raw data."""
         # Read from Kafka
         df = self.read_from_kafka()
 
@@ -59,53 +56,27 @@ class LogProcessor:
             from_json(col("value").cast("string"), self.schema).alias("data")
         ).select("data.*")
 
-        # Converter a string de timestamp para o tipo timestamp
-        parsed_df = parsed_df.withColumn("timestamp", to_timestamp("timestamp"))
+        return parsed_df
 
-        # Agora podemos usar a função window com o campo timestamp convertido
-        metrics = (
-            parsed_df.withWatermark("timestamp", "1 minute")
-            .groupBy(window("timestamp", "5 minutes"), "endpoint")
-            .agg(
-                count("*").alias("request_count"),
-                avg("response_time").alias("avg_response_time"),
-                count("status_code").alias("total_requests"),
-            )
-        )
-
-        return metrics
-
-    def write_to_console(self, df):
-        """Write the processed data to console (for testing)."""
-        return (
-            df.writeStream.outputMode("complete")
-            .format("console")
-            .option("truncate", "false")
-            .start()
-        )
-
-    def write_to_parquet(self, df, output_path: str):
-        """Write the processed data to Parquet files."""
+    def write_to_hdfs(self, df, output_path: str):
+        """Write the raw data to HDFS in Parquet format."""
         return (
             df.writeStream.outputMode("append")
             .format("parquet")
-            .option("path", output_path)
-            .option("checkpointLocation", f"{output_path}/checkpoint")
+            .option("path", f"hdfs://namenode:9000{output_path}")
+            .option(
+                "checkpointLocation", f"hdfs://namenode:9000{output_path}/checkpoint"
+            )
             .start()
         )
 
-    def run(self, output_path: str = None):
+    def run(self, output_path: str = "/data/raw-logs"):
         """Run the streaming job."""
-        metrics_df = self.process_stream()
-
-        if output_path:
-            query = self.write_to_parquet(metrics_df, output_path)
-        else:
-            query = self.write_to_console(metrics_df)
-
+        raw_df = self.process_stream()
+        query = self.write_to_hdfs(raw_df, output_path)
         query.awaitTermination()
 
 
 if __name__ == "__main__":
     processor = LogProcessor()
-    processor.run("data/spark-jobs/output")
+    processor.run()

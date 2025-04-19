@@ -1,5 +1,0 @@
-v1
-{"path":"file:///C:/Lucas/Web%20Traffic%20Monitoring%20Platform/data/spark-jobs/output/part-00000-ad0a2767-c494-4d5c-b6c7-1a81e35d2eb0-c000.snappy.parquet","size":917,"isDir":false,"modificationTime":1744986131953,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///C:/Lucas/Web%20Traffic%20Monitoring%20Platform/data/spark-jobs/output/part-00104-100f914d-19ab-410f-ab7f-2eacce09a266-c000.snappy.parquet","size":2061,"isDir":false,"modificationTime":1744986151232,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///C:/Lucas/Web%20Traffic%20Monitoring%20Platform/data/spark-jobs/output/part-00133-68f1ab3d-0528-416e-a9f9-d16125e9a016-c000.snappy.parquet","size":2038,"isDir":false,"modificationTime":1744986157613,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///C:/Lucas/Web%20Traffic%20Monitoring%20Platform/data/spark-jobs/output/part-00155-bdb85e2a-abe6-41a3-bcd3-bea06cde2f3c-c000.snappy.parquet","size":2005,"isDir":false,"modificationTime":1744986162578,"blockReplication":1,"blockSize":33554432,"action":"add"}

@@ -1,3 +1,5 @@
+version: '3'
+
 services:
   zookeeper:
     image: zookeeper:3.4.9
@@ -8,76 +10,108 @@ services:
       ZOO_MY_ID: 1
       ZOO_PORT: 2181
       ZOO_SERVERS: server.1=zookeeper:2888:3888
-    volumes:
-      - ./data/zookeeper/data:/data
-      - ./data/zookeeper/datalog:/datalog
-  kafka1:
+    networks:
+      - spark-network
+
+  kafka:
     image: confluentinc/cp-kafka:5.3.0
-    hostname: kafka1
+    hostname: kafka
     ports:
-      - "9091:9091"
+      - "9092:9092"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka1:19091,LISTENER_DOCKER_EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9091
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka:19092,LISTENER_DOCKER_EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
       KAFKA_BROKER_ID: 1
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    volumes:
-      - ./data/kafka1/data:/var/lib/kafka/data
     depends_on:
       - zookeeper
+    networks:
+      - spark-network
+
   kafdrop:
     image: obsidiandynamics/kafdrop
     restart: "no"
     ports:
-      - "9000:9000"
+      - "9005:9000"
     environment:
-      KAFKA_BROKERCONNECT: "kafka1:19091"
+      KAFKA_BROKERCONNECT: "kafka:19092"
     depends_on:
-      - kafka1
+      - kafka
 
-  spark:
-    image: bitnami/spark:latest
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    ports:
+      - "9870:9870" # Web UI do HDFS
+      - "9000:9000" # Porta RPC do HDFS
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+    env_file:
+      - ./hadoop.env
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    depends_on:
+      - namenode
+    ports:
+      - "9864:9864" # Web UI do DataNode
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    environment:
+      - SERVICE_PRECONDITION=namenode:9000
+    env_file:
+      - ./hadoop.env
+
+  spark-master:
+    image: bitnami/spark:3.4.1
+    container_name: spark-master
+    ports:
+      - "8080:8080" # Spark Web UI
+      - "7077:7077" # Spark Master port
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
-    ports:
-      - "8080:8080"
-      - "7077:7077"
-
-  airflow:
-    image: apache/airflow:2.7.1
-    environment:
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__FERNET_KEY=OaDeM1_4VSP0ZqmuYv9vFx7lQ7N3f6QZf4P0eJ12l1g=
-      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
-      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - SPARK_PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1
     volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
-    command: >
-      bash -c "airflow db init && airflow webserver && airflow scheduler"
-    ports:
-      - "8081:8080"
+      - ./spark-jobs/src/log_processor.py:/opt/bitnami/spark/scripts/log_processor.py
     depends_on:
-      - postgres
+      - kafka
+    networks:
+      - spark-network
 
-  postgres:
-    image: postgres:13
-    environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-    volumes:
-      - postgres-db-volume:/var/lib/postgresql/data
+  spark-worker:
+    image: bitnami/spark:3.4.1
+    container_name: spark-worker
     ports:
-      - "5432:5432"
+      - "8081:8081" # Worker Web UI
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1
+    depends_on:
+      - spark-master
+    networks:
+      - spark-network
 
 volumes:
-  postgres-db-volume:
+  hadoop_namenode:
+  hadoop_datanode:
+
+
+networks:
+  spark-network:
+    driver: bridge
