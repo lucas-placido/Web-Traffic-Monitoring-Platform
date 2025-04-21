@@ -7,4 +7,4 @@ kafka-console-consumer --bootstrap-server localhost:9091 --topic web-logs --from
 
 docker exec -it -u root 0a65a1d3d5852d3e0227050ea760a15bd6eec4495396749a3c4c978c2eead0f2 bash
 cd /opt/bitnami/spark/scripts/
-spark-submit log_processor.py
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1 log_processor.py
